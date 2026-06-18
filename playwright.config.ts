@@ -18,9 +18,12 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm.cmd run dev", // run dev using npm.cmd on Windows to bypass Execution Policy
+    command: "npm.cmd run dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      MOCK_DB: "true"
+    }
   },
 });

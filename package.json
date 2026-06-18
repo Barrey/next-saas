@@ -9,12 +9,14 @@
     "db:setup": "node scripts/setup-db.js"
   },
   "dependencies": {
+    "arctic": "^3.7.0",
     "clsx": "^2.1.1",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.20.0",
     "next": "15.1.0",
     "next-themes": "^0.4.6",
+    "otplib": "^13.4.1",
     "pg": "^8.21.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
