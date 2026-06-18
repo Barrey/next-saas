@@ -34,17 +34,20 @@ All database dialects (PostgreSQL, MySQL, MariaDB) will be updated under their r
 ---
 
 ## 3. Configuration & Expiry
-We centralize configurations inside `src/lib/config.ts` to easily override authentication and workspace parameters.
+We centralize default configurations inside `src/lib/config.ts`. Additionally, each invitation can specify a custom expiry duration (in days) during creation, falling back to the default configuration.
 
 ### Centralized Config File (`src/lib/config.ts`)
 ```typescript
 export const AUTH_CONFIG = {
-  // Expiry time for workspace invitations (in days, defaults to 7)
+  // Default expiry time for workspace invitations (in days, defaults to 7)
   invitationExpiryDays: Number(process.env.INVITATION_EXPIRY_DAYS) || 7,
 };
 ```
 Calculations for expiry:
-`const expiresAt = new Date(Date.now() + AUTH_CONFIG.invitationExpiryDays * 24 * 60 * 60 * 1000);`
+- If `expiresInDays` parameter is specified in the API request, use that value.
+- Otherwise, fall back to `AUTH_CONFIG.invitationExpiryDays`.
+`const durationDays = body.expiresInDays || AUTH_CONFIG.invitationExpiryDays;`
+`const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);`
 
 ---
 
@@ -59,9 +62,10 @@ Calculations for expiry:
 ### 4.2 Member Invitations (`POST /api/auth/organization/invite`)
 1. User must be authenticated.
 2. Verify `user.role === 'owner'`. If not $\rightarrow$ deny access.
-3. Generate secure random 32-byte token.
-4. Store SHA-256 hash of token in `invitations` with status `'pending'`.
-5. Return invitation link: `/api/invitations/accept?token=RAW_TOKEN`.
+3. Payload accepts: `{ email, expiresInDays }` (where `expiresInDays` is an optional integer).
+4. Generate secure random 32-byte token.
+5. Store SHA-256 hash of token in `invitations` with status `'pending'`.
+6. Return invitation link: `/api/invitations/accept?token=RAW_TOKEN`.
 
 ### 4.3 Accepting Invitations (`GET /api/invitations/accept?token=RAW_TOKEN`)
 1. Retrieve token query parameter $\rightarrow$ hash using SHA-256 $\rightarrow$ query `invitations`.
