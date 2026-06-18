@@ -4,6 +4,7 @@ import crypto from "crypto";
 export const organizations = mysqlTable("organizations", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: varchar("name", { length: 255 }).notNull(),
+  invitationExpiryDays: int("invitation_expiry_days"),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 

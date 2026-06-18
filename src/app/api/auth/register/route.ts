@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, invitations } from "@/db/schema";
 import { hashPassword } from "@/lib/auth/crypto";
 import { createSession } from "@/lib/auth/session";
 import { eq } from "drizzle-orm";
+import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,11 +21,45 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = hashPassword(password);
     
-    // Insert user
+    const inviteToken = req.nextUrl.searchParams.get("invite_token");
+    let organizationId: string | null = null;
+    let role: string | null = null;
+    let hashedToken: string | null = null;
+
+    console.log("[Register API] invite_token query param:", inviteToken);
+
+    if (inviteToken) {
+      hashedToken = crypto.createHash("sha256").update(inviteToken).digest("hex");
+      const inviteList = await db.select().from(invitations).where(eq(invitations.id, hashedToken)).limit(1);
+      console.log("[Register API] queried invite list length:", inviteList.length);
+      if (inviteList.length > 0) {
+        const invite = inviteList[0];
+        console.log("[Register API] invite details:", { status: invite.status, expiresAt: invite.expiresAt, now: new Date() });
+        if (invite.status === "pending" && invite.expiresAt.getTime() > Date.now()) {
+          organizationId = invite.organizationId;
+          role = "member";
+          console.log("[Register API] invite verified! organizationId:", organizationId);
+        } else {
+          console.log("[Register API] invite validation failed (status or expiry)");
+        }
+      }
+    }
+
+    // Insert user with organization context
     const [newUser] = await db.insert(users).values({
       email,
-      passwordHash
+      passwordHash,
+      organizationId,
+      role
     }).returning();
+
+    console.log("[Register API] inserted user:", { id: newUser.id, organizationId: newUser.organizationId, role: newUser.role });
+
+    // Consume invite token if applicable
+    if (hashedToken && organizationId) {
+      await db.update(invitations).set({ status: "accepted" }).where(eq(invitations.id, hashedToken));
+      console.log("[Register API] invitation marked as accepted");
+    }
 
     const ipAddress = req.headers.get("x-forwarded-for") || undefined;
     const userAgent = req.headers.get("user-agent") || undefined;

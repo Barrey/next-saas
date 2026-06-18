@@ -88,19 +88,21 @@ if (isMock) {
       const targetId = params[params.length - 1];
       const user = mockUsers.find(u => u.id === targetId);
       if (user) {
-        if (sql.includes('"failed_login_attempts" = $1')) {
-          user.failed_login_attempts = params[0];
-        }
-        if (sql.includes('"locked_until" = $2')) {
-          user.locked_until = params[1];
+        const setMatches = sql.matchAll(/"([^"]+)"\s*=\s*\$(\d+)/g);
+        for (const match of setMatches) {
+          const col = match[1];
+          const paramIdx = parseInt(match[2], 10) - 1;
+          const val = params[paramIdx];
+          if (col === 'failed_login_attempts') user.failed_login_attempts = val;
+          else if (col === 'locked_until') user.locked_until = val;
+          else if (col === 'organization_id') user.organization_id = val;
+          else if (col === 'role') user.role = val;
+          else if (col === 'two_factor_secret') user.two_factor_secret = val;
+          else if (col === 'two_factor_enabled') user.two_factor_enabled = val;
         }
         if (sql.includes('"failed_login_attempts" = 0')) {
           user.failed_login_attempts = 0;
           user.locked_until = null;
-        }
-        if (sql.includes('"organization_id" = $1') && sql.includes('"role" = $2')) {
-          user.organization_id = params[0];
-          user.role = params[1];
         }
       }
       return mockQueryResult(user ? [user] : []);
@@ -108,13 +110,96 @@ if (isMock) {
 
     // 5. INSERT organization
     if (sql.includes('insert into "organizations"')) {
-      const org = {
-        id: params[0],
-        name: params[1],
+      const match = sql.match(/insert into "organizations" \((.+?)\)/i);
+      const cols = match ? match[1].split(',').map((c: string) => c.trim().replace(/"/g, '')) : ['id', 'name'];
+      const org: any = {
+        id: crypto.randomUUID(),
+        name: '',
+        invitation_expiry_days: null,
         created_at: new Date()
       };
+      cols.forEach((col: string, idx: number) => {
+        const val = params[idx];
+        if (col === 'id') org.id = val;
+        else if (col === 'name') org.name = val;
+        else if (col === 'invitation_expiry_days') org.invitation_expiry_days = val;
+        else if (col === 'created_at') org.created_at = val;
+      });
       mockOrgs.push(org);
       return mockQueryResult([org]);
+    }
+
+    // 5b. SELECT organization by id
+    if (sql.includes('from "organizations"') && sql.includes('"organizations"."id" = $1')) {
+      const id = params[0];
+      const org = mockOrgs.find(o => o.id === id);
+      return mockQueryResult(org ? [org] : []);
+    }
+
+    // 5c. UPDATE organization
+    if (sql.includes('update "organizations"')) {
+      const targetId = params[params.length - 1];
+      const org = mockOrgs.find(o => o.id === targetId);
+      if (org) {
+        const setMatches = sql.matchAll(/"([^"]+)"\s*=\s*\$(\d+)/g);
+        for (const match of setMatches) {
+          const col = match[1];
+          const paramIdx = parseInt(match[2], 10) - 1;
+          const val = params[paramIdx];
+          if (col === 'name') org.name = val;
+          else if (col === 'invitation_expiry_days') org.invitation_expiry_days = val;
+        }
+      }
+      return mockQueryResult(org ? [org] : []);
+    }
+
+    // 5d. INSERT invitation
+    if (sql.includes('insert into "invitations"')) {
+      const match = sql.match(/insert into "invitations" \((.+?)\)/i);
+      const cols = match ? match[1].split(',').map((c: string) => c.trim().replace(/"/g, '')) : [];
+      const invite: any = {
+        id: '',
+        email: '',
+        organization_id: '',
+        status: 'pending',
+        expires_at: new Date(),
+        created_at: new Date()
+      };
+      cols.forEach((col: string, idx: number) => {
+        const val = params[idx];
+        if (col === 'id') invite.id = val;
+        else if (col === 'email') invite.email = val;
+        else if (col === 'organization_id') invite.organization_id = val;
+        else if (col === 'status') invite.status = val;
+        else if (col.endsWith('_at') || col.endsWith('_until')) {
+          invite[col] = (typeof val === 'string' || typeof val === 'number') ? new Date(val) : val;
+        }
+      });
+      console.log("[Mock DB] INSERT invitation:", invite);
+      mockTokens.push(invite);
+      return mockQueryResult([invite]);
+    }
+
+    // 5e. SELECT invitation by id
+    if (sql.includes('from "invitations"') && sql.includes('"invitations"."id" = $1')) {
+      console.log("[Mock DB] SELECT invitation by id search:", params[0]);
+      const invite = mockTokens.find(t => t.id === params[0] && t.organization_id !== undefined);
+      console.log("[Mock DB] SELECT invitation found:", invite);
+      return mockQueryResult(invite ? [invite] : []);
+    }
+
+    // 5f. UPDATE invitation status
+    if (sql.includes('update "invitations"')) {
+      const targetId = params[params.length - 1];
+      console.log("[Mock DB] UPDATE invitation search status:", params[0], "target:", targetId);
+      const invite = mockTokens.find(t => t.id === targetId && t.organization_id !== undefined);
+      if (invite) {
+        invite.status = params[0];
+        console.log("[Mock DB] UPDATE invitation success, new status:", invite.status);
+      } else {
+        console.log("[Mock DB] UPDATE invitation failed - not found");
+      }
+      return mockQueryResult(invite ? [invite] : []);
     }
 
     // 6. INSERT session
@@ -122,10 +207,10 @@ if (isMock) {
       const session = {
         id: params[0],
         user_id: params[1],
-        expires_at: params[2],
+        expires_at: (typeof params[2] === 'string' || typeof params[2] === 'number') ? new Date(params[2]) : params[2],
         ip_address: params[3],
         user_agent: params[4],
-        created_at: params[5] || new Date()
+        created_at: (typeof params[5] === 'string' || typeof params[5] === 'number') ? new Date(params[5]) : (params[5] || new Date())
       };
       mockSessions.push(session);
       return mockQueryResult([session]);
@@ -137,25 +222,20 @@ if (isMock) {
       const session = mockSessions.find(s => s.id === hashedToken);
       const user = session ? mockUsers.find(u => u.id === session.user_id) : null;
       if (session && user) {
-        return mockQueryResult([
-          {
-            id: session.id,
-            user_id: session.user_id,
-            expires_at: session.expires_at,
-            ip_address: session.ip_address,
-            user_agent: session.user_agent,
-            created_at: session.created_at,
-            email: user.email,
-            password_hash: user.password_hash,
-            two_factor_secret: user.two_factor_secret,
-            two_factor_enabled: user.two_factor_enabled,
-            failed_login_attempts: user.failed_login_attempts,
-            locked_until: user.locked_until,
-            suspended: user.suspended,
-            organization_id: user.organization_id,
-            role: user.role
-          }
-        ]);
+        const match = sql.match(/select\s+(.+?)\s+from/i);
+        if (match) {
+          const cols = match[1].split(',').map((c: string) => c.trim().replace(/"/g, ''));
+          const rowData = cols.map((col: string) => {
+            const [table, field] = col.split('.');
+            if (table === 'sessions') {
+              return session[field];
+            } else if (table === 'users') {
+              return user[field];
+            }
+            return null;
+          });
+          return { rows: [rowData], fields: cols.map((c: string) => ({ name: c.split('.')[1] })) };
+        }
       }
       return mockQueryResult([]);
     }
@@ -181,8 +261,8 @@ if (isMock) {
         id: params[0],
         user_id: params[1],
         type: params[2],
-        expires_at: params[3],
-        created_at: params[4] || new Date()
+        expires_at: (typeof params[3] === 'string' || typeof params[3] === 'number') ? new Date(params[3]) : params[3],
+        created_at: (typeof params[4] === 'string' || typeof params[4] === 'number') ? new Date(params[4]) : (params[4] || new Date())
       };
       mockTokens.push(token);
       return mockQueryResult([token]);

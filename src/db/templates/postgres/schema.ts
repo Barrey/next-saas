@@ -3,6 +3,7 @@ import { pgTable, uuid, varchar, timestamp, boolean, integer } from "drizzle-orm
 export const organizations = pgTable("organizations", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
+  invitationExpiryDays: integer("invitation_expiry_days"),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 

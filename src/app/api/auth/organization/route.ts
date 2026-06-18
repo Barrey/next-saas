@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "You already belong to an organization." }, { status: 400 });
     }
 
-    const { name } = await req.json();
+    const { name, invitationExpiryDays } = await req.json();
     if (!name || name.trim().length === 0) {
       return NextResponse.json({ error: "Organization name is required." }, { status: 400 });
     }
@@ -26,7 +26,8 @@ export async function POST(req: NextRequest) {
     // 1. Insert organization
     await db.insert(organizations).values({
       id: orgId,
-      name
+      name,
+      invitationExpiryDays: invitationExpiryDays !== undefined ? Number(invitationExpiryDays) : null
     });
 
     // 2. Set user as Owner
