@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "db:setup": "node scripts/setup-db.js",
-    "test": "playwright test"
+    "test": "playwright test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "arctic": "^3.7.0",
@@ -32,6 +35,7 @@
     "@types/react-dom": "^19.0.1",
     "drizzle-kit": "^0.31.10",
     "postcss": "^8.4.49",
+    "tsx": "^4.22.4",
     "typescript": "^5.7.2"
   }
 }
