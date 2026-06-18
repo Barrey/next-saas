@@ -14,10 +14,12 @@ if (isMock) {
   const mockUsers: any[] = (globalThis as any).mockUsers || [];
   const mockSessions: any[] = (globalThis as any).mockSessions || [];
   const mockTokens: any[] = (globalThis as any).mockTokens || [];
+  const mockOrgs: any[] = (globalThis as any).mockOrgs || [];
 
   (globalThis as any).mockUsers = mockUsers;
   (globalThis as any).mockSessions = mockSessions;
   (globalThis as any).mockTokens = mockTokens;
+  (globalThis as any).mockOrgs = mockOrgs;
 
   const mockPool = {
     connect: async () => {
@@ -68,12 +70,14 @@ if (isMock) {
         id: crypto.randomUUID(),
         email: params[0],
         password_hash: params[1],
-        two_factor_secret: params[2] || null,
-        two_factor_enabled: params[3] === true || params[3] === 1 || false,
-        failed_login_attempts: params[4] || 0,
-        locked_until: params[5] || null,
-        suspended: params[6] || false,
-        created_at: params[7] || new Date()
+        two_factor_secret: null,
+        two_factor_enabled: false,
+        failed_login_attempts: 0,
+        locked_until: null,
+        suspended: false,
+        organization_id: params[2] || null,
+        role: params[3] || null,
+        created_at: new Date()
       };
       mockUsers.push(user);
       return mockQueryResult([user]);
@@ -94,11 +98,26 @@ if (isMock) {
           user.failed_login_attempts = 0;
           user.locked_until = null;
         }
+        if (sql.includes('"organization_id" = $1') && sql.includes('"role" = $2')) {
+          user.organization_id = params[0];
+          user.role = params[1];
+        }
       }
       return mockQueryResult(user ? [user] : []);
     }
 
-    // 5. INSERT session
+    // 5. INSERT organization
+    if (sql.includes('insert into "organizations"')) {
+      const org = {
+        id: params[0],
+        name: params[1],
+        created_at: new Date()
+      };
+      mockOrgs.push(org);
+      return mockQueryResult([org]);
+    }
+
+    // 6. INSERT session
     if (sql.includes('insert into "sessions"')) {
       const session = {
         id: params[0],
@@ -112,7 +131,7 @@ if (isMock) {
       return mockQueryResult([session]);
     }
 
-    // 6. SELECT session JOIN user
+    // 7. SELECT session JOIN user
     if (sql.includes('from "sessions"') && sql.includes('inner join "users"')) {
       const hashedToken = params[0];
       const session = mockSessions.find(s => s.id === hashedToken);
@@ -132,14 +151,16 @@ if (isMock) {
             two_factor_enabled: user.two_factor_enabled,
             failed_login_attempts: user.failed_login_attempts,
             locked_until: user.locked_until,
-            suspended: user.suspended
+            suspended: user.suspended,
+            organization_id: user.organization_id,
+            role: user.role
           }
         ]);
       }
       return mockQueryResult([]);
     }
 
-    // 7. DELETE session
+    // 8. DELETE session
     if (sql.includes('delete from "sessions"')) {
       const hashedToken = params[0];
       const idx = mockSessions.findIndex(s => s.id === hashedToken);
@@ -147,14 +168,14 @@ if (isMock) {
       return mockQueryResult([]);
     }
 
-    // 8. SELECT verification token
+    // 9. SELECT verification token
     if (sql.includes('from "verification_tokens"')) {
       const hashedToken = params[0];
       const token = mockTokens.find(t => t.id === hashedToken);
       return mockQueryResult(token ? [token] : []);
     }
 
-    // 9. INSERT verification token
+    // 10. INSERT verification token
     if (sql.includes('insert into "verification_tokens"')) {
       const token = {
         id: params[0],
@@ -167,7 +188,7 @@ if (isMock) {
       return mockQueryResult([token]);
     }
 
-    // 10. DELETE verification token
+    // 11. DELETE verification token
     if (sql.includes('delete from "verification_tokens"')) {
       const hashedToken = params[0];
       const idx = mockTokens.findIndex(t => t.id === hashedToken);

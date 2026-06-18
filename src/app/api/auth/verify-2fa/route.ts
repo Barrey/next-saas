@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { createSession } from "@/lib/auth/session";
-import { authenticator } from "otplib";
+import { verifySync } from "otplib";
 import { eq } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
@@ -35,12 +35,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "2FA is not configured for this account." }, { status: 400 });
     }
 
-    const isValid = authenticator.verify({
+    const result = verifySync({
       token: code,
       secret: user.twoFactorSecret
     });
 
-    if (!isValid) {
+    if (!result.valid) {
       return NextResponse.json({ error: "Invalid verification code. Please try again." }, { status: 400 });
     }
 
