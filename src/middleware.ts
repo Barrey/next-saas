@@ -8,7 +8,7 @@ export function middleware(req: NextRequest) {
   const isProtectedRoute = path.startsWith("/dashboard") || path.startsWith("/settings");
 
   if (isProtectedRoute && !token) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(new URL("/login?redirected_from=1", req.url));
   }
 
   if (isAuthRoute && token) {
