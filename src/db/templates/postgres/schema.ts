@@ -1,5 +1,11 @@
 import { pgTable, uuid, varchar, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 
+export const organizations = pgTable("organizations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),
@@ -9,6 +15,8 @@ export const users = pgTable("users", {
   failedLoginAttempts: integer("failed_login_attempts").default(0).notNull(),
   lockedUntil: timestamp("locked_until"),
   suspended: boolean("suspended").default(false).notNull(),
+  organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "set null" }),
+  role: varchar("role", { length: 50 }), // 'owner' | 'member'
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
@@ -24,7 +32,16 @@ export const sessions = pgTable("sessions", {
 export const verificationTokens = pgTable("verification_tokens", {
   id: varchar("id", { length: 64 }).primaryKey(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  type: varchar("type", { length: 50 }).notNull(), // 'magic_link' | 'password_reset' | 'email_verification'
+  type: varchar("type", { length: 50 }).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const invitations = pgTable("invitations", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  email: varchar("email", { length: 255 }).notNull(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  status: varchar("status", { length: 50 }).default("pending").notNull(), // 'pending' | 'accepted' | 'declined'
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
