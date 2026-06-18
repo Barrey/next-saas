@@ -6,6 +6,9 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-border: var(--border);
+  --color-card: var(--card);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
   --radius-lg: var(--radius);
 }
 
@@ -14,6 +17,31 @@
   --foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
+  --card: oklch(0.985 0 0);
   --border: oklch(0.92 0 0);
+  --accent: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.55 0 0);
   --radius: 0.5rem;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --card: oklch(0.18 0 0);
+  --border: oklch(0.25 0 0);
+  --accent: oklch(0.2 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+}
+
+.theme-cyberpunk {
+  --background: oklch(0.18 0.12 320);
+  --foreground: oklch(0.92 0.05 320);
+  --primary: oklch(0.70 0.30 330);
+  --primary-foreground: oklch(0.1 0 0);
+  --card: oklch(0.2 0.1 320);
+  --border: oklch(0.3 0.1 320);
+  --accent: oklch(0.4 0.15 320);
+  --muted-foreground: oklch(0.7 0.1 320);
 }

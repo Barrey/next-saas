@@ -1,4 +1,5 @@
 import "@/styles/globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata = {
   title: "NextSaas Boilerplate",
@@ -11,9 +12,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="bg-background text-foreground antialiased">
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body className="bg-background text-foreground antialiased transition-colors duration-200">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
