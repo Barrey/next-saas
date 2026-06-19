@@ -124,4 +124,18 @@ test.describe("Auth UI Pages", () => {
     await page.waitForURL(/\/login/);
     expect(page.url()).toContain("/login");
   });
+
+  test("login page displays social oauth login options", async ({ page }) => {
+    await page.goto("/login");
+    await expect(page.locator("a[href*='/oauth/google/redirect']")).toBeVisible();
+    await expect(page.locator("a[href*='/oauth/github/redirect']")).toBeVisible();
+    await expect(page.locator("a[href*='/oauth/facebook/redirect']")).toBeVisible();
+  });
+
+  test("register page displays social oauth registration options", async ({ page }) => {
+    await page.goto("/register");
+    await expect(page.locator("a[href*='/oauth/google/redirect']")).toBeVisible();
+    await expect(page.locator("a[href*='/oauth/github/redirect']")).toBeVisible();
+    await expect(page.locator("a[href*='/oauth/facebook/redirect']")).toBeVisible();
+  });
 });

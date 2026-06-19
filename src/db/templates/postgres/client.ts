@@ -66,19 +66,48 @@ if (isMock) {
 
     // 3. INSERT user
     if (sql.includes('insert into "users"')) {
-      const user = {
+      const match = sql.match(/insert into "users" \((.+?)\) values \((.+?)\)/i);
+      const cols = match ? match[1].split(',').map((c: string) => c.trim().replace(/"/g, '')) : [];
+      const vals = match ? match[2].split(',').map((v: string) => v.trim()) : [];
+      const user: any = {
         id: crypto.randomUUID(),
-        email: params[0],
-        password_hash: params[1],
+        email: '',
+        password_hash: null,
+        google_id: null,
+        github_id: null,
+        facebook_id: null,
         two_factor_secret: null,
         two_factor_enabled: false,
         failed_login_attempts: 0,
         locked_until: null,
         suspended: false,
-        organization_id: params[2] || null,
-        role: params[3] || null,
+        organization_id: null,
+        role: null,
         created_at: new Date()
       };
+      cols.forEach((col: string, idx: number) => {
+        const valStr = vals[idx];
+        if (!valStr) return;
+        const matchParam = valStr.match(/\$(\d+)/);
+        if (matchParam) {
+          const paramIdx = parseInt(matchParam[1], 10) - 1;
+          const val = params[paramIdx];
+          if (col === 'id') user.id = val;
+          else if (col === 'email') user.email = val;
+          else if (col === 'password_hash') user.password_hash = val;
+          else if (col === 'google_id') user.google_id = val;
+          else if (col === 'github_id') user.github_id = val;
+          else if (col === 'facebook_id') user.facebook_id = val;
+          else if (col === 'two_factor_secret') user.two_factor_secret = val;
+          else if (col === 'two_factor_enabled') user.two_factor_enabled = val === true || val === 1;
+          else if (col === 'failed_login_attempts') user.failed_login_attempts = val;
+          else if (col === 'locked_until') user.locked_until = val;
+          else if (col === 'suspended') user.suspended = val === true || val === 1;
+          else if (col === 'organization_id') user.organization_id = val;
+          else if (col === 'role') user.role = val;
+          else if (col === 'created_at') user.created_at = val;
+        }
+      });
       mockUsers.push(user);
       return mockQueryResult([user]);
     }
@@ -98,8 +127,11 @@ if (isMock) {
           else if (col === 'organization_id') user.organization_id = val;
           else if (col === 'role') user.role = val;
           else if (col === 'two_factor_secret') user.two_factor_secret = val;
-          else if (col === 'two_factor_enabled') user.two_factor_enabled = val;
+          else if (col === 'two_factor_enabled') user.two_factor_enabled = val === true || val === 1;
           else if (col === 'password_hash') user.password_hash = val;
+          else if (col === 'google_id') user.google_id = val;
+          else if (col === 'github_id') user.github_id = val;
+          else if (col === 'facebook_id') user.facebook_id = val;
         }
         if (sql.includes('"failed_login_attempts" = 0')) {
           user.failed_login_attempts = 0;
