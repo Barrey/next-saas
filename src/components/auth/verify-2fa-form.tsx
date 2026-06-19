@@ -48,7 +48,7 @@ export function Verify2FAForm() {
     <Card className="border-none shadow-none bg-transparent">
       <CardHeader className="px-0 pt-0 pb-6">
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Two-factor verification</h2>
-        <CardDescription className="text-muted-foreground">
+        <CardDescription className="text-muted-foreground text-sm">
           Enter the 6-digit code from your authenticator app.
         </CardDescription>
       </CardHeader>
@@ -88,9 +88,11 @@ export function Verify2FAForm() {
       </CardContent>
 
       <CardFooter className="px-0 pb-0 flex flex-col space-y-3 text-center text-sm">
-        <a href="/login" className="text-foreground font-medium hover:underline">
-          Back to login
-        </a>
+        <p className="text-muted-foreground">
+          <a href="/login" className="text-foreground font-medium hover:underline">
+            Back to login
+          </a>
+        </p>
       </CardFooter>
     </Card>
   );

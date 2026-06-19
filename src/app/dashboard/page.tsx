@@ -11,14 +11,14 @@ export const metadata = {
 function RoleBadge({ role }: { role: string | null }) {
   if (role === "owner") {
     return (
-      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-200">
         Owner
       </span>
     );
   }
   if (role === "member") {
     return (
-      <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+      <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-950 dark:text-blue-200">
         Member
       </span>
     );
@@ -67,13 +67,13 @@ export default async function DashboardPage() {
           <p className="mt-1 text-sm text-muted-foreground">Your account overview.</p>
         </div>
 
-        <Card id="dashboard-user-card" className="gap-4">
-          <CardHeader className="flex flex-row items-center justify-between pb-0">
+        <Card id="dashboard-user-card" className="border border-border">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Account</CardTitle>
             <RoleBadge role={user.role} />
           </CardHeader>
 
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 pt-4">
             <div>
               <p className="text-xs text-muted-foreground">Email</p>
               <p id="dashboard-email" className="text-sm font-medium text-foreground mt-0.5">

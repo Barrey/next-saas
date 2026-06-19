@@ -80,7 +80,7 @@ export function LoginForm() {
     <Card className="border-none shadow-none bg-transparent">
       <CardHeader className="px-0 pt-0 pb-6">
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h2>
-        <CardDescription className="text-muted-foreground">
+        <CardDescription className="text-muted-foreground text-sm">
           {redirectedFrom ? "Please log in to continue." : "Sign in to your account."}
         </CardDescription>
       </CardHeader>
@@ -158,4 +158,3 @@ export function LoginForm() {
     </Card>
   );
 }
-

@@ -58,23 +58,23 @@ export function RegisterForm() {
     <Card className="border-none shadow-none bg-transparent">
       <CardHeader className="px-0 pt-0 pb-6">
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Create an account</h2>
-        <CardDescription className="text-muted-foreground">
+        <CardDescription className="text-muted-foreground text-sm">
           {inviteToken
             ? "You've been invited — complete registration to join your team."
             : "Start your journey with NextSaas."}
         </CardDescription>
       </CardHeader>
 
-      {inviteToken && (
-        <div
-          id="register-invite-banner"
-          className="rounded-lg border border-border bg-accent px-4 py-3 text-sm text-foreground mb-4"
-        >
-          🎉 You&apos;ve been invited! Register below to accept and join your team.
-        </div>
-      )}
-
       <CardContent className="px-0 pb-4">
+        {inviteToken && (
+          <div
+            id="register-invite-banner"
+            className="rounded-lg border border-border bg-accent px-4 py-3 text-sm text-foreground mb-4"
+          >
+            🎉 You&apos;ve been invited! Register below to accept and join your team.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="register-email">Email</Label>

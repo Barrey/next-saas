@@ -99,6 +99,7 @@ if (isMock) {
           else if (col === 'role') user.role = val;
           else if (col === 'two_factor_secret') user.two_factor_secret = val;
           else if (col === 'two_factor_enabled') user.two_factor_enabled = val;
+          else if (col === 'password_hash') user.password_hash = val;
         }
         if (sql.includes('"failed_login_attempts" = 0')) {
           user.failed_login_attempts = 0;
