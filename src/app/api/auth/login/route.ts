@@ -51,6 +51,20 @@ export async function POST(req: NextRequest) {
       lockedUntil: null
     }).where(eq(users.id, user.id));
 
+    // Check 2FA
+    if (user.twoFactorEnabled) {
+      const preAuthToken = `${user.id}:${Date.now()}`;
+      const response = NextResponse.json({ success: true, requiresTwoFactor: true });
+      response.cookies.set("pre_auth_token", preAuthToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 5 * 60 // 5 minutes
+      });
+      return response;
+    }
+
     const ipAddress = req.headers.get("x-forwarded-for") || undefined;
     const userAgent = req.headers.get("user-agent") || undefined;
 
