@@ -14,11 +14,13 @@ if (isMock) {
   const mockSessions: any[] = (globalThis as any).mockSessions || [];
   const mockTokens: any[] = (globalThis as any).mockTokens || [];
   const mockOrgs: any[] = (globalThis as any).mockOrgs || [];
+  const mockSubscriptions: any[] = (globalThis as any).mockSubscriptions || [];
 
   (globalThis as any).mockUsers = mockUsers;
   (globalThis as any).mockSessions = mockSessions;
   (globalThis as any).mockTokens = mockTokens;
   (globalThis as any).mockOrgs = mockOrgs;
+  (globalThis as any).mockSubscriptions = mockSubscriptions;
 
   const mockQueryResult = (rows: any[]) => {
     const fields = rows.length > 0 ? Object.keys(rows[0]).map(key => ({ name: key })) : [];
@@ -282,6 +284,95 @@ if (isMock) {
       const hashedToken = params[0];
       const idx = mockTokens.findIndex(t => t.id === hashedToken);
       if (idx !== -1) mockTokens.splice(idx, 1);
+      return mockQueryResult([]);
+    }
+
+    // 11. SELECT subscriptions
+    if (sql.includes('from `subscriptions`')) {
+      if (sql.includes('`organization_id` = ?')) {
+        const orgId = params[0];
+        const sub = mockSubscriptions.find(s => s.organization_id === orgId);
+        return mockQueryResult(sub ? [sub] : []);
+      }
+      if (sql.includes('`provider_subscription_id` = ?')) {
+        const subId = params[0];
+        const sub = mockSubscriptions.find(s => s.provider_subscription_id === subId);
+        return mockQueryResult(sub ? [sub] : []);
+      }
+      return mockQueryResult([]);
+    }
+
+    // 12. INSERT subscription
+    if (sql.includes('insert into `subscriptions`')) {
+      const match = sql.match(/insert into `subscriptions` \((.+?)\) values \((.+?)\)/i);
+      const cols = match ? match[1].split(',').map((c: string) => c.trim().replace(/`/g, '')) : [];
+      const vals = match ? match[2].split(',').map((v: string) => v.trim()) : [];
+      const sub: any = {
+        id: crypto.randomUUID(),
+        organization_id: '',
+        provider: '',
+        provider_customer_id: '',
+        provider_subscription_id: null,
+        provider_price_id: null,
+        status: null,
+        current_period_end: null,
+        cancel_at_period_end: false,
+        created_at: new Date()
+      };
+      let paramIdx = 0;
+      cols.forEach((col: string, idx: number) => {
+        const valStr = vals[idx];
+        if (valStr === '?') {
+          const val = params[paramIdx++];
+          if (col === 'id') sub.id = val;
+          else if (col === 'organization_id') sub.organization_id = val;
+          else if (col === 'provider') sub.provider = val;
+          else if (col === 'provider_customer_id') sub.provider_customer_id = val;
+          else if (col === 'provider_subscription_id') sub.provider_subscription_id = val;
+          else if (col === 'provider_price_id') sub.provider_price_id = val;
+          else if (col === 'status') sub.status = val;
+          else if (col === 'current_period_end') {
+            sub.current_period_end = (typeof val === 'string' || typeof val === 'number') ? new Date(val) : val;
+          }
+          else if (col === 'cancel_at_period_end') sub.cancel_at_period_end = val === true || val === 1;
+          else if (col === 'created_at') {
+            sub.created_at = (typeof val === 'string' || typeof val === 'number') ? new Date(val) : val;
+          }
+        }
+      });
+      mockSubscriptions.push(sub);
+      return mockQueryResult([sub]);
+    }
+
+    // 13. UPDATE subscription
+    if (sql.includes('update `subscriptions`')) {
+      const targetVal = params[params.length - 1];
+      const sub = mockSubscriptions.find(s => s.organization_id === targetVal || s.provider_subscription_id === targetVal || s.id === targetVal);
+      if (sub) {
+        const setMatches = sql.matchAll(/`([^`]+)`\s*=\s*\?/g);
+        let paramIdx = 0;
+        for (const match of setMatches) {
+          const col = match[1];
+          const val = params[paramIdx++];
+          if (col === 'provider') sub.provider = val;
+          else if (col === 'provider_customer_id') sub.provider_customer_id = val;
+          else if (col === 'provider_subscription_id') sub.provider_subscription_id = val;
+          else if (col === 'provider_price_id') sub.provider_price_id = val;
+          else if (col === 'status') sub.status = val;
+          else if (col === 'current_period_end') {
+            sub.current_period_end = (typeof val === 'string' || typeof val === 'number') ? new Date(val) : val;
+          }
+          else if (col === 'cancel_at_period_end') sub.cancel_at_period_end = val === true || val === 1;
+        }
+      }
+      return mockQueryResult(sub ? [sub] : []);
+    }
+
+    // 14. DELETE subscription
+    if (sql.includes('delete from `subscriptions`')) {
+      const targetVal = params[0];
+      const idx = mockSubscriptions.findIndex(s => s.organization_id === targetVal || s.provider_subscription_id === targetVal || s.id === targetVal);
+      if (idx !== -1) mockSubscriptions.splice(idx, 1);
       return mockQueryResult([]);
     }
 

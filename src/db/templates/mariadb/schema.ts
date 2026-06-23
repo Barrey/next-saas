@@ -50,3 +50,16 @@ export const invitations = mysqlTable("invitations", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
+
+export const subscriptions = mysqlTable("subscriptions", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  organizationId: varchar("organization_id", { length: 36 }).notNull().unique().references(() => organizations.id, { onDelete: "cascade" }),
+  provider: varchar("provider", { length: 50 }).notNull(),
+  providerCustomerId: varchar("provider_customer_id", { length: 255 }).notNull(),
+  providerSubscriptionId: varchar("provider_subscription_id", { length: 255 }).unique(),
+  providerPriceId: varchar("provider_price_id", { length: 255 }),
+  status: varchar("status", { length: 50 }),
+  currentPeriodEnd: timestamp("current_period_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end"),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
