@@ -49,3 +49,16 @@ export const invitations = pgTable("invitations", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
+
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().unique().references(() => organizations.id, { onDelete: "cascade" }),
+  provider: varchar("provider", { length: 50 }).notNull(),
+  providerCustomerId: varchar("provider_customer_id", { length: 255 }).notNull(),
+  providerSubscriptionId: varchar("provider_subscription_id", { length: 255 }).unique(),
+  providerPriceId: varchar("provider_price_id", { length: 255 }),
+  status: varchar("status", { length: 50 }),
+  currentPeriodEnd: timestamp("current_period_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end"),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
