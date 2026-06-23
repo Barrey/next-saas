@@ -15,12 +15,14 @@ if (isMock) {
   const mockTokens: any[] = (globalThis as any).mockTokens || [];
   const mockOrgs: any[] = (globalThis as any).mockOrgs || [];
   const mockSubscriptions: any[] = (globalThis as any).mockSubscriptions || [];
+  const mockApiKeys: any[] = (globalThis as any).mockApiKeys || [];
 
   (globalThis as any).mockUsers = mockUsers;
   (globalThis as any).mockSessions = mockSessions;
   (globalThis as any).mockTokens = mockTokens;
   (globalThis as any).mockOrgs = mockOrgs;
   (globalThis as any).mockSubscriptions = mockSubscriptions;
+  (globalThis as any).mockApiKeys = mockApiKeys;
 
   const mockQueryResult = (rows: any[]) => {
     const fields = rows.length > 0 ? Object.keys(rows[0]).map(key => ({ name: key })) : [];
@@ -373,6 +375,69 @@ if (isMock) {
       const targetVal = params[0];
       const idx = mockSubscriptions.findIndex(s => s.organization_id === targetVal || s.provider_subscription_id === targetVal || s.id === targetVal);
       if (idx !== -1) mockSubscriptions.splice(idx, 1);
+      return mockQueryResult([]);
+    }
+
+    // 15. SELECT api_keys
+    if (sql.includes('from `api_keys`')) {
+      if (sql.includes('`key_hash` = ?')) {
+        const hash = params[0];
+        const match = mockApiKeys.find(k => k.key_hash === hash);
+        return mockQueryResult(match ? [match] : []);
+      }
+      if (sql.includes('`organization_id` = ?')) {
+        const orgId = params[0];
+        const matches = mockApiKeys.filter(k => k.organization_id === orgId);
+        return mockQueryResult(matches);
+      }
+      return mockQueryResult([]);
+    }
+
+    // 16. INSERT api_key
+    if (sql.includes('insert into `api_keys`')) {
+      const match = sql.match(/insert into `api_keys` \((.+?)\) values \((.+?)\)/i);
+      const cols = match ? match[1].split(',').map((c: string) => c.trim().replace(/`/g, '')) : [];
+      const vals = match ? match[2].split(',').map((v: string) => v.trim()) : [];
+      const keyObj: any = {
+        id: crypto.randomUUID(),
+        organization_id: '',
+        name: '',
+        key_hash: '',
+        truncated_key: '',
+        created_at: new Date(),
+        last_used_at: null
+      };
+      let paramIdx = 0;
+      cols.forEach((col: string, idx: number) => {
+        if (vals[idx] === '?') {
+          const val = params[paramIdx++];
+          if (col === 'id') keyObj.id = val;
+          else if (col === 'organization_id') keyObj.organization_id = val;
+          else if (col === 'name') keyObj.name = val;
+          else if (col === 'key_hash') keyObj.key_hash = val;
+          else if (col === 'truncated_key') keyObj.truncated_key = val;
+          else if (col === 'created_at') keyObj.created_at = val;
+        }
+      });
+      mockApiKeys.push(keyObj);
+      return mockQueryResult([keyObj]);
+    }
+
+    // 17. UPDATE api_key
+    if (sql.includes('update `api_keys`')) {
+      const targetVal = params[params.length - 1];
+      const keyObj = mockApiKeys.find(k => k.id === targetVal);
+      if (keyObj && sql.includes('`last_used_at` = ?')) {
+        keyObj.last_used_at = params[0];
+      }
+      return mockQueryResult(keyObj ? [keyObj] : []);
+    }
+
+    // 18. DELETE api_key
+    if (sql.includes('delete from `api_keys`')) {
+      const targetId = params[0];
+      const idx = mockApiKeys.findIndex(k => k.id === targetId);
+      if (idx !== -1) mockApiKeys.splice(idx, 1);
       return mockQueryResult([]);
     }
 
