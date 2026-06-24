@@ -15,11 +15,15 @@ if (isMock) {
   const mockSessions: any[] = (globalThis as any).mockSessions || [];
   const mockTokens: any[] = (globalThis as any).mockTokens || [];
   const mockOrgs: any[] = (globalThis as any).mockOrgs || [];
+  const mockSubscriptions: any[] = (globalThis as any).mockSubscriptions || [];
+  const mockApiKeys: any[] = (globalThis as any).mockApiKeys || [];
 
   (globalThis as any).mockUsers = mockUsers;
   (globalThis as any).mockSessions = mockSessions;
   (globalThis as any).mockTokens = mockTokens;
   (globalThis as any).mockOrgs = mockOrgs;
+  (globalThis as any).mockSubscriptions = mockSubscriptions;
+  (globalThis as any).mockApiKeys = mockApiKeys;
 
   const mockPool = {
     connect: async () => {
@@ -36,11 +40,28 @@ if (isMock) {
     on: () => {}
   };
 
-  function mockQueryResult(rows: any[]) {
+  function mockQueryResult(rows: any[], sql?: string) {
     if (rows.length === 0) {
       return { rows: [], fields: [] };
     }
-    const keys = Object.keys(rows[0]);
+    let keys = Object.keys(rows[0]);
+    if (sql) {
+      const match = sql.match(/select\s+(.+?)\s+from/i);
+      if (match) {
+        const cols = match[1].split(',').map((c: string) => {
+          const parts = c.trim().split(/\s+as\s+/i);
+          const rawCol = parts[parts.length - 1].trim();
+          return rawCol.replace(/[`"]/g, '').split('.').pop()!;
+        });
+        keys = cols.map(col => {
+          const camel = col.replace(/_([a-z])/g, g => g[1].toUpperCase());
+          if (rows[0][camel] !== undefined) return camel;
+          if (rows[0][col] !== undefined) return col;
+          const found = Object.keys(rows[0]).find(k => k.toLowerCase() === col.replace(/_/g, '').toLowerCase());
+          return found || col;
+        });
+      }
+    }
     const fields = keys.map(key => ({ name: key }));
     const arrayRows = rows.map(row => keys.map(key => row[key]));
     return { rows: arrayRows, fields };
@@ -61,7 +82,14 @@ if (isMock) {
     if (sql.includes('from "users"') && sql.includes('"users"."id" = $1')) {
       const id = params[0];
       const user = mockUsers.find(u => u.id === id);
-      return mockQueryResult(user ? [user] : []);
+      return mockQueryResult(user ? [user] : [], sql);
+    }
+
+    // 2b. SELECT users by organization_id
+    if (sql.includes('from "users"') && sql.includes('"users"."organization_id" = $1')) {
+      const orgId = params[0];
+      const matches = mockUsers.filter(u => u.organization_id === orgId);
+      return mockQueryResult(matches, sql);
     }
 
     // 3. INSERT user
@@ -282,7 +310,7 @@ if (isMock) {
     }
 
     // 9. SELECT verification token
-    if (sql.includes('from "verification_tokens"')) {
+    if (sql.toLowerCase().includes('select') && sql.includes('from "verification_tokens"')) {
       const hashedToken = params[0];
       const token = mockTokens.find(t => t.id === hashedToken);
       return mockQueryResult(token ? [token] : []);
@@ -309,7 +337,190 @@ if (isMock) {
       return mockQueryResult([]);
     }
 
-    return mockQueryResult([]);
+    // 11. SELECT subscriptions
+    if (sql.toLowerCase().includes('select') && sql.includes('from "subscriptions"')) {
+      if (sql.includes('"subscriptions"."organization_id" = $1')) {
+        const orgId = params[0];
+        const sub = mockSubscriptions.find(s => s.organization_id === orgId);
+        return mockQueryResult(sub ? [sub] : []);
+      }
+      if (sql.includes('"subscriptions"."provider_subscription_id" = $1')) {
+        const subId = params[0];
+        const sub = mockSubscriptions.find(s => s.provider_subscription_id === subId);
+        return mockQueryResult(sub ? [sub] : []);
+      }
+      return mockQueryResult([]);
+    }
+
+    // 12. INSERT subscription
+    if (sql.includes('insert into "subscriptions"')) {
+      const match = sql.match(/insert into "subscriptions" \((.+?)\) values \((.+?)\)/i);
+      const cols = match ? match[1].split(',').map((c: string) => c.trim().replace(/"/g, '')) : [];
+      const vals = match ? match[2].split(',').map((v: string) => v.trim()) : [];
+      const sub: any = {
+        id: crypto.randomUUID(),
+        organization_id: '',
+        provider: '',
+        provider_customer_id: '',
+        provider_subscription_id: null,
+        provider_price_id: null,
+        status: null,
+        current_period_end: null,
+        cancel_at_period_end: false,
+        created_at: new Date()
+      };
+      cols.forEach((col: string, idx: number) => {
+        const valStr = vals[idx];
+        if (valStr) {
+          const matchParam = valStr.match(/\$(\d+)/);
+          if (matchParam) {
+            const paramIdx = parseInt(matchParam[1], 10) - 1;
+            const val = params[paramIdx];
+            if (col === 'id') sub.id = val;
+            else if (col === 'organization_id') sub.organization_id = val;
+            else if (col === 'provider') sub.provider = val;
+            else if (col === 'provider_customer_id') sub.provider_customer_id = val;
+            else if (col === 'provider_subscription_id') sub.provider_subscription_id = val;
+            else if (col === 'provider_price_id') sub.provider_price_id = val;
+            else if (col === 'status') sub.status = val;
+            else if (col === 'current_period_end') {
+              sub.current_period_end = (typeof val === 'string' || typeof val === 'number') ? new Date(val) : val;
+            }
+            else if (col === 'cancel_at_period_end') sub.cancel_at_period_end = val === true || val === 1;
+            else if (col === 'created_at') {
+              sub.created_at = (typeof val === 'string' || typeof val === 'number') ? new Date(val) : val;
+            }
+          }
+        }
+      });
+      mockSubscriptions.push(sub);
+      return mockQueryResult([sub]);
+    }
+
+    // 13. UPDATE subscription
+    if (sql.includes('update "subscriptions"')) {
+      const targetVal = params[params.length - 1];
+      const sub = mockSubscriptions.find(s => s.organization_id === targetVal || s.provider_subscription_id === targetVal || s.id === targetVal);
+      if (sub) {
+        const setMatches = sql.matchAll(/"([^"]+)"\s*=\s*\$(\d+)/g);
+        for (const match of setMatches) {
+          const col = match[1];
+          const paramIdx = parseInt(match[2], 10) - 1;
+          const val = params[paramIdx];
+          if (col === 'provider') sub.provider = val;
+          else if (col === 'provider_customer_id') sub.provider_customer_id = val;
+          else if (col === 'provider_subscription_id') sub.provider_subscription_id = val;
+          else if (col === 'provider_price_id') sub.provider_price_id = val;
+          else if (col === 'status') sub.status = val;
+          else if (col === 'current_period_end') {
+            sub.current_period_end = (typeof val === 'string' || typeof val === 'number') ? new Date(val) : val;
+          }
+          else if (col === 'cancel_at_period_end') sub.cancel_at_period_end = val === true || val === 1;
+        }
+      }
+      return mockQueryResult(sub ? [sub] : []);
+    }
+
+    // 14. DELETE subscription
+    if (sql.includes('delete from "subscriptions"')) {
+      const targetVal = params[0];
+      const idx = mockSubscriptions.findIndex(s => s.organization_id === targetVal || s.provider_subscription_id === targetVal || s.id === targetVal);
+      if (idx !== -1) mockSubscriptions.splice(idx, 1);
+      return mockQueryResult([]);
+    }
+
+    // 15. SELECT api_keys JOIN organization
+    if (sql.includes('from "api_keys"') && sql.includes('inner join "organizations"')) {
+      const hash = params[0];
+      const keyObj = mockApiKeys.find(k => k.key_hash === hash);
+      const org = keyObj ? mockOrgs.find(o => o.id === keyObj.organization_id) : null;
+      if (keyObj && org) {
+        const match = sql.match(/select\s+(.+?)\s+from/i);
+        if (match) {
+          const cols = match[1].split(',').map((c: string) => c.trim().replace(/"/g, ''));
+          const rowData = cols.map((col: string) => {
+            const [table, field] = col.split('.');
+            if (table === 'api_keys') {
+              return keyObj[field];
+            } else if (table === 'organizations') {
+              return org[field];
+            }
+            return null;
+          });
+          return { rows: [rowData], fields: cols.map((c: string) => ({ name: c.split('.')[1] })) };
+        }
+      }
+      return mockQueryResult([]);
+    }
+
+    // 15b. SELECT api_keys
+    if (sql.toLowerCase().includes('select') && sql.includes('from "api_keys"')) {
+      if (sql.includes('"api_keys"."key_hash" = $1')) {
+        const hash = params[0];
+        const match = mockApiKeys.find(k => k.key_hash === hash);
+        return mockQueryResult(match ? [match] : [], sql);
+      }
+      if (sql.includes('"api_keys"."organization_id" = $1')) {
+        const orgId = params[0];
+        const matches = mockApiKeys.filter(k => k.organization_id === orgId);
+        return mockQueryResult(matches, sql);
+      }
+      return mockQueryResult([]);
+    }
+
+    // 16. INSERT api_key
+    if (sql.includes('insert into "api_keys"')) {
+      const match = sql.match(/insert into "api_keys" \((.+?)\) values \((.+?)\)/i);
+      const cols = match ? match[1].split(',').map((c: string) => c.trim().replace(/"/g, '')) : [];
+      const vals = match ? match[2].split(',').map((v: string) => v.trim()) : [];
+      const keyObj: any = {
+        id: crypto.randomUUID(),
+        organization_id: '',
+        name: '',
+        key_hash: '',
+        truncated_key: '',
+        created_at: new Date(),
+        last_used_at: null
+      };
+      cols.forEach((col: string, idx: number) => {
+        const valStr = vals[idx];
+        if (valStr) {
+          const matchParam = valStr.match(/\$(\d+)/);
+          if (matchParam) {
+            const paramIdx = parseInt(matchParam[1], 10) - 1;
+            const val = params[paramIdx];
+            if (col === 'id') keyObj.id = val;
+            else if (col === 'organization_id') keyObj.organization_id = val;
+            else if (col === 'name') keyObj.name = val;
+            else if (col === 'key_hash') keyObj.key_hash = val;
+            else if (col === 'truncated_key') keyObj.truncated_key = val;
+            else if (col === 'created_at') keyObj.created_at = val;
+          }
+        }
+      });
+      mockApiKeys.push(keyObj);
+      return mockQueryResult([keyObj], sql);
+    }
+
+    // 17. UPDATE api_key
+    if (sql.includes('update "api_keys"')) {
+      const targetVal = params[params.length - 1];
+      const keyObj = mockApiKeys.find(k => k.id === targetVal);
+      if (keyObj && sql.includes('"last_used_at" = $1')) {
+        keyObj.last_used_at = params[0];
+      }
+      return mockQueryResult(keyObj ? [keyObj] : [], sql);
+    }
+
+    // 18. DELETE api_key
+    if (sql.includes('delete from "api_keys"')) {
+      const targetId = params[0];
+      const idx = mockApiKeys.findIndex(k => k.id === targetId);
+      if (idx !== -1) mockApiKeys.splice(idx, 1);
+      return mockQueryResult([]);
+    }
+
+    return mockQueryResult([], sql);
   }
 
   dbInstance = drizzle(mockPool as any, { schema });

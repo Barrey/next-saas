@@ -53,6 +53,13 @@ if (isMock) {
       return mockQueryResult(user ? [user] : []);
     }
 
+    // 2b. SELECT users by organization_id
+    if (sql.includes('from `users`') && sql.includes('`users`.`organization_id` = ?')) {
+      const orgId = params[0];
+      const matches = mockUsers.filter(u => u.organization_id === orgId);
+      return mockQueryResult(matches);
+    }
+
     // 3. INSERT user
     if (sql.includes('insert into `users`')) {
       const match = sql.match(/insert into `users` \((.+?)\) values \((.+?)\)/i);
@@ -262,7 +269,7 @@ if (isMock) {
     }
 
     // 8. SELECT verification token
-    if (sql.includes('from `verification_tokens`')) {
+    if (sql.toLowerCase().includes('select') && sql.includes('from `verification_tokens`')) {
       const hashedToken = params[0];
       const token = mockTokens.find(t => t.id === hashedToken);
       return mockQueryResult(token ? [token] : []);
@@ -290,7 +297,7 @@ if (isMock) {
     }
 
     // 11. SELECT subscriptions
-    if (sql.includes('from `subscriptions`')) {
+    if (sql.toLowerCase().includes('select') && sql.includes('from `subscriptions`')) {
       if (sql.includes('`organization_id` = ?')) {
         const orgId = params[0];
         const sub = mockSubscriptions.find(s => s.organization_id === orgId);
@@ -379,7 +386,7 @@ if (isMock) {
     }
 
     // 15. SELECT api_keys
-    if (sql.includes('from `api_keys`')) {
+    if (sql.toLowerCase().includes('select') && sql.includes('from `api_keys`')) {
       if (sql.includes('`key_hash` = ?')) {
         const hash = params[0];
         const match = mockApiKeys.find(k => k.key_hash === hash);
