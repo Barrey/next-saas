@@ -17,7 +17,7 @@ export default async function SecuritySettingsPage() {
   }
 
   return (
-    <SettingsSidebar>
+    <SettingsSidebar userRole={user.role}>
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Security Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">

@@ -1,12 +1,20 @@
+"use client";
+
 import * as React from "react";
 import Link from "next/link";
-import { User, ShieldAlert, ArrowLeft } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { User, ShieldAlert, ArrowLeft, Key } from "lucide-react";
 
 interface SettingsSidebarProps {
   children: React.ReactNode;
+  userRole?: string | null;
 }
 
-export function SettingsSidebar({ children }: SettingsSidebarProps) {
+export function SettingsSidebar({ children, userRole }: SettingsSidebarProps) {
+  const pathname = usePathname();
+  const isSecurityActive = pathname === "/settings/security";
+  const isApiKeysActive = pathname === "/settings/api-keys";
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Settings Navigation Sidebar */}
@@ -29,11 +37,28 @@ export function SettingsSidebar({ children }: SettingsSidebarProps) {
           </div>
           <Link
             href="/settings/security"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground transition-colors"
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isSecurityActive
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
           >
             <ShieldAlert className="h-4 w-4" />
             Security & 2FA
           </Link>
+          {userRole === "owner" && (
+            <Link
+              href="/settings/api-keys"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isApiKeysActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <Key className="h-4 w-4" />
+              API Keys
+            </Link>
+          )}
         </nav>
       </aside>
 
@@ -55,10 +80,26 @@ export function SettingsSidebar({ children }: SettingsSidebarProps) {
             </span>
             <Link
               href="/settings/security"
-              className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md"
+              className={`px-3 py-1.5 text-xs font-medium rounded-md ${
+                isSecurityActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
             >
               Security & 2FA
             </Link>
+            {userRole === "owner" && (
+              <Link
+                href="/settings/api-keys"
+                className={`px-3 py-1.5 text-xs font-medium rounded-md ${
+                  isApiKeysActive
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                API Keys
+              </Link>
+            )}
           </nav>
         </div>
 

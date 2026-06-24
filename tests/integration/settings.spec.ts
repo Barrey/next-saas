@@ -92,13 +92,13 @@ test.describe("Security Settings & 2FA Flow", () => {
     const secretKey = (await secretKeyElement.innerText()).trim();
     expect(secretKey.length).toBeGreaterThan(0);
 
-    // Generate valid TOTP code
-    const validCode = generateSync({ secret: secretKey });
-
     // Submit invalid code first
     await page.locator("#twofa-code").fill("000000");
     await page.locator("#twofa-verify-submit").click();
     await expect(page.locator("#twofa-error")).toHaveText("Invalid verification code. Please try again.");
+
+    // Generate valid TOTP code
+    const validCode = generateSync({ secret: secretKey });
 
     // Submit valid code
     await page.locator("#twofa-code").fill(validCode);
