@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 
 export const metadata = {
   title: "Dashboard — NextSaas",
@@ -90,7 +91,12 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <LogoutButton />
+        <div className="flex gap-4 w-full">
+          <Button asChild className="flex-1" id="planner-demo-link">
+            <Link href="/demo/planner">AI Travel Planner (Demo)</Link>
+          </Button>
+          <LogoutButton />
+        </div>
       </div>
     </main>
   );

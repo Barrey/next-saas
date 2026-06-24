@@ -5,7 +5,7 @@ export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
   const isAuthRoute = path.startsWith("/login") || path.startsWith("/register");
-  const isProtectedRoute = path.startsWith("/dashboard") || path.startsWith("/settings");
+  const isProtectedRoute = path.startsWith("/dashboard") || path.startsWith("/settings") || path.startsWith("/demo");
 
   if (isProtectedRoute && !token) {
     return NextResponse.redirect(new URL("/login?redirected_from=1", req.url));
@@ -19,5 +19,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/settings/:path*", "/login", "/register"],
+  matcher: ["/dashboard/:path*", "/settings/:path*", "/demo/:path*", "/login", "/register"],
 };
