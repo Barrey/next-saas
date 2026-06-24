@@ -33,7 +33,7 @@ export default async function ApiKeysSettingsPage() {
     .from(apiKeys)
     .where(eq(apiKeys.organizationId, user.organizationId));
 
-  const serializedKeys = existingKeys.map(k => ({
+  const serializedKeys = existingKeys.map((k: any) => ({
     id: k.id,
     name: k.name,
     truncatedKey: k.truncatedKey,

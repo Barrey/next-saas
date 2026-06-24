@@ -34,7 +34,7 @@ export async function validateApiKey(req: NextRequest) {
   db.update(apiKeys)
     .set({ lastUsedAt: new Date() })
     .where(eq(apiKeys.id, apiKey.id))
-    .catch((err) => console.error("Failed to update API key lastUsedAt:", err));
+    .catch((err: any) => console.error("Failed to update API key lastUsedAt:", err));
 
   return organization;
 }

@@ -60,3 +60,55 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=server_error", req.url));
   }
 }
+
+export async function POST(req: NextRequest) {
+  try {
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+
+    const { email } = body;
+    if (!email || !email.includes("@")) {
+      return NextResponse.json({ error: "Valid email is required." }, { status: 400 });
+    }
+
+    // 1. Find or create user
+    let userList = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    let user = userList[0];
+
+    if (!user) {
+      const [newUser] = await db.insert(users).values({
+        email,
+        passwordHash: null,
+        organizationId: null,
+        role: null,
+      }).returning();
+      user = newUser;
+    }
+
+    // 2. Generate secure token
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    // 3. Save hashed token in verification_tokens
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    await db.insert(verificationTokens).values({
+      id: hashedToken,
+      userId: user.id,
+      type: "magic_link",
+      expiresAt,
+    });
+
+    // 4. Construct and log magic link URL
+    const magicLinkUrl = `${req.nextUrl.origin}/api/auth/magic-link?token=${rawToken}`;
+    console.log(`[Magic Link URL]: ${magicLinkUrl}`);
+
+    return NextResponse.json({ success: true, token: rawToken });
+  } catch (err) {
+    console.error("Magic Link creation error:", err);
+    return NextResponse.json({ error: "Server error occurred." }, { status: 500 });
+  }
+}
