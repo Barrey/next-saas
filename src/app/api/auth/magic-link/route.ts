@@ -4,6 +4,7 @@ import { users, verificationTokens } from "@/db/schema";
 import { createSession } from "@/lib/auth/session";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
+import { sendEmail } from "@/lib/email";
 
 export async function GET(req: NextRequest) {
   try {
@@ -102,9 +103,29 @@ export async function POST(req: NextRequest) {
       expiresAt,
     });
 
-    // 4. Construct and log magic link URL
+    // 4. Construct magic link URL
     const magicLinkUrl = `${req.nextUrl.origin}/api/auth/magic-link?token=${rawToken}`;
-    console.log(`[Magic Link URL]: ${magicLinkUrl}`);
+
+    // 5. Send transaction email
+    const subject = "Sign in to NextSaas";
+    const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 16px;">Sign in to NextSaas</h2>
+        <p style="font-size: 14px; color: #475569; line-height: 1.5; margin-bottom: 24px;">Click the button below to log into your account. This link will expire in 15 minutes.</p>
+        <a href="${magicLinkUrl}" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-size: 14px; font-weight: 600; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-bottom: 24px;">Sign in</a>
+        <p style="font-size: 12px; color: #94a3b8; line-height: 1.5;">If you didn't request this link, you can safely ignore this email.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #94a3b8; line-height: 1.5;">If the button doesn't work, copy and paste this URL into your browser:</p>
+        <p style="font-size: 12px; word-break: break-all; color: #3b82f6;">${magicLinkUrl}</p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: email,
+      subject,
+      html,
+      text: `Sign in link: ${magicLinkUrl}`
+    });
 
     return NextResponse.json({ success: true, token: rawToken });
   } catch (err) {
